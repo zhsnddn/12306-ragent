@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: 12306-ragent
+
+assistant:
+  model: qwen-max
+  api-key: ${DASHSCOPE_API_KEY:}
+  system-prompt: 你是12306智能客服助手。遇到票务、车站、经停站相关问题时，优先调用MCP工具核实信息，再用中文给出简洁、准确的回答。
+  max-iters: 5
+  mcp:
+    enabled: true
+    name: ticketing-mcp
+    command: java
+    jar-path: ../12306-mcp/target/12306-mcp-0.0.1-SNAPSHOT.jar
+    timeout-seconds: 30
+    initialization-timeout-seconds: 30
