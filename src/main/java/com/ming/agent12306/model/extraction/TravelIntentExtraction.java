@@ -14,6 +14,7 @@ public class TravelIntentExtraction {
     private String toStation;
     private String travelDateRaw;
     private String travelDateNormalized;
+    private String departureTimePreference;
     private String seatPreference;
     private Boolean needClarification;
     private String clarificationQuestion;

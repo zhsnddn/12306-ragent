@@ -44,7 +44,11 @@ public class AssistantMessagePreprocessor {
             return new AssistantPreprocessResult(true, message);
         }
 
-        if (Boolean.TRUE.equals(extraction.getNeedClarification())) {
+        boolean hasRequiredTicketFields = StringUtils.hasText(extraction.getFromStation())
+                && StringUtils.hasText(extraction.getToStation())
+                && StringUtils.hasText(extraction.getTravelDateNormalized());
+
+        if (Boolean.TRUE.equals(extraction.getNeedClarification()) && !hasRequiredTicketFields) {
             String clarificationQuestion = extraction.getClarificationQuestion();
             return new AssistantPreprocessResult(
                     false,
@@ -114,13 +118,15 @@ public class AssistantMessagePreprocessor {
                 + "请从用户问题中提取结构化字段。"
                 + "必须只输出一个 JSON 对象，不要输出 markdown，不要输出解释说明。"
                 + "queryType 只能是 " + TravelQueryTypesConstant.TICKET_QUERY + "、" + TravelQueryTypesConstant.ROUTE_QUERY + " 或 " + TravelQueryTypesConstant.OTHER + "。"
-                + "如果是余票查询，输出 " + TravelQueryTypesConstant.TICKET_QUERY + "，尽量提取 fromStation、toStation、travelDateRaw、travelDateNormalized、seatPreference。"
+                + "如果是余票查询，输出 " + TravelQueryTypesConstant.TICKET_QUERY + "，尽量提取 fromStation、toStation、travelDateRaw、travelDateNormalized、departureTimePreference、seatPreference。"
                 + "如果是经停站查询，输出 " + TravelQueryTypesConstant.ROUTE_QUERY + "，尽量提取 trainCode、fromStation、toStation、travelDateRaw、travelDateNormalized。"
                 + "travelDateNormalized 必须输出 yyyy-MM-dd。"
+                + "像上午、下午、晚上、早点出发、晚点出发，这些都属于 departureTimePreference，是偏好，不是必填项，不要因为缺少精确时间而要求用户补充几点。"
+                + "只要能确定出发地、到达地、出行日期，就不要追问更精确的时间。"
                 + "当前日期是 " + today + "，12306 可查询日期范围是 " + today + " 到 " + latestAllowedDate + "。"
                 + "如果用户日期不明确、缺失、或无法确定具体到某一天，则 needClarification=true，并给出 clarificationQuestion。"
                 + "如果不是查票问题，则 queryType=" + TravelQueryTypesConstant.OTHER + "。"
-                + "请输出字段：queryType, trainCode, fromStation, toStation, travelDateRaw, travelDateNormalized, seatPreference, needClarification, clarificationQuestion。"
+                + "请输出字段：queryType, trainCode, fromStation, toStation, travelDateRaw, travelDateNormalized, departureTimePreference, seatPreference, needClarification, clarificationQuestion。"
                 + "字段缺失时填 null。";
     }
 
@@ -171,6 +177,9 @@ public class AssistantMessagePreprocessor {
         }
         if (StringUtils.hasText(extraction.getTravelDateNormalized())) {
             builder.append("\n- 出行日期：").append(extraction.getTravelDateNormalized());
+        }
+        if (StringUtils.hasText(extraction.getDepartureTimePreference())) {
+            builder.append("\n- 出发时间偏好：").append(extraction.getDepartureTimePreference());
         }
         if (StringUtils.hasText(extraction.getSeatPreference())) {
             builder.append("\n- 席别偏好：").append(extraction.getSeatPreference());
