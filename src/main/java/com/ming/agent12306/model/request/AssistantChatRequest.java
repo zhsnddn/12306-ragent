@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AssistantChatRequest(
+        String sessionId,
         @NotBlank(message = "message 不能为空")
         String message
 ) {

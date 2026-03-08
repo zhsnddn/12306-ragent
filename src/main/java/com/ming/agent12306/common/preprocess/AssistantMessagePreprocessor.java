@@ -1,5 +1,7 @@
 package com.ming.agent12306.common.preprocess;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ming.agent12306.common.constant.AssistantErrorMessagesConstant;
 import com.ming.agent12306.common.constant.TravelQueryTypesConstant;
 import com.ming.agent12306.model.extraction.TravelIntentExtraction;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AssistantMessagePreprocessor {
 
     private final DashScopeChatModel dashScopeChatModel;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AssistantMessagePreprocessor(DashScopeChatModel dashScopeChatModel) {
         this.dashScopeChatModel = dashScopeChatModel;
@@ -88,11 +91,12 @@ public class AssistantMessagePreprocessor {
                 .maxIters(1)
                 .build();
 
-        Msg response = extractor.call(List.of(createUserMessage(message)), TravelIntentExtraction.class).block();
-        if (response == null || !response.hasStructuredData()) {
+        Msg response = extractor.call(List.of(createUserMessage(message))).block();
+        if (response == null || !StringUtils.hasText(response.getTextContent())) {
             return null;
         }
-        return response.getStructuredData(TravelIntentExtraction.class);
+
+        return parseExtraction(response.getTextContent());
     }
 
     private Msg createUserMessage(String message) {
@@ -108,13 +112,37 @@ public class AssistantMessagePreprocessor {
         LocalDate latestAllowedDate = today.plusDays(14);
         return "你是12306票务参数提取器。"
                 + "请从用户问题中提取结构化字段。"
+                + "必须只输出一个 JSON 对象，不要输出 markdown，不要输出解释说明。"
                 + "queryType 只能是 " + TravelQueryTypesConstant.TICKET_QUERY + "、" + TravelQueryTypesConstant.ROUTE_QUERY + " 或 " + TravelQueryTypesConstant.OTHER + "。"
                 + "如果是余票查询，输出 " + TravelQueryTypesConstant.TICKET_QUERY + "，尽量提取 fromStation、toStation、travelDateRaw、travelDateNormalized、seatPreference。"
                 + "如果是经停站查询，输出 " + TravelQueryTypesConstant.ROUTE_QUERY + "，尽量提取 trainCode、fromStation、toStation、travelDateRaw、travelDateNormalized。"
                 + "travelDateNormalized 必须输出 yyyy-MM-dd。"
                 + "当前日期是 " + today + "，12306 可查询日期范围是 " + today + " 到 " + latestAllowedDate + "。"
                 + "如果用户日期不明确、缺失、或无法确定具体到某一天，则 needClarification=true，并给出 clarificationQuestion。"
-                + "如果不是查票问题，则 queryType=" + TravelQueryTypesConstant.OTHER + "。";
+                + "如果不是查票问题，则 queryType=" + TravelQueryTypesConstant.OTHER + "。"
+                + "请输出字段：queryType, trainCode, fromStation, toStation, travelDateRaw, travelDateNormalized, seatPreference, needClarification, clarificationQuestion。"
+                + "字段缺失时填 null。";
+    }
+
+    private TravelIntentExtraction parseExtraction(String content) {
+        String normalized = stripCodeFence(content);
+        try {
+            return objectMapper.readValue(normalized, TravelIntentExtraction.class);
+        } catch (JsonProcessingException ex) {
+            return null;
+        }
+    }
+
+    private String stripCodeFence(String content) {
+        String trimmed = content.trim();
+        if (trimmed.startsWith("```")) {
+            int firstLineBreak = trimmed.indexOf('\n');
+            int lastFence = trimmed.lastIndexOf("```");
+            if (firstLineBreak > -1 && lastFence > firstLineBreak) {
+                return trimmed.substring(firstLineBreak + 1, lastFence).trim();
+            }
+        }
+        return trimmed;
     }
 
     private String validateTravelDate(String date) {

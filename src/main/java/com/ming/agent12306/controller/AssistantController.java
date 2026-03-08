@@ -38,7 +38,10 @@ public class AssistantController {
         SseEmitter emitter = new SseEmitter(0L);
         assistantService.streamChat(request).subscribe(
                 event -> sendEvent(emitter, event),
-                emitter::completeWithError,
+                ex -> {
+                    sendErrorEvent(emitter, ex);
+                    emitter.complete();
+                },
                 emitter::complete
         );
         return emitter;
@@ -51,6 +54,21 @@ public class AssistantController {
                     .data(event));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
+        }
+    }
+
+    private void sendErrorEvent(SseEmitter emitter, Throwable ex) {
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data(new AssistantStreamEvent(
+                            "error",
+                            true,
+                            "ASSISTANT",
+                            ex == null || ex.getMessage() == null ? "系统繁忙，请稍后重试" : ex.getMessage(),
+                            null
+                    )));
+        } catch (Exception ignored) {
         }
     }
 }

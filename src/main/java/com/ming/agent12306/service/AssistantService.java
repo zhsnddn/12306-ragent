@@ -5,6 +5,8 @@ import com.ming.agent12306.common.preprocess.AssistantPreprocessResult;
 import com.ming.agent12306.common.validation.AssistantRequestValidator;
 import com.ming.agent12306.common.constant.AssistantErrorMessagesConstant;
 import com.ming.agent12306.common.exception.BusinessException;
+import com.ming.agent12306.memory.model.ConversationContext;
+import com.ming.agent12306.memory.service.AssistantMemoryService;
 import com.ming.agent12306.model.request.AssistantChatRequest;
 import com.ming.agent12306.model.response.AssistantChatResponse;
 import com.ming.agent12306.model.response.AssistantStreamEvent;
@@ -32,40 +34,66 @@ public class AssistantService {
     private final Toolkit toolkit;
     private final AssistantMessagePreprocessor messagePreprocessor;
     private final AssistantRequestValidator requestValidator;
+    private final AssistantMemoryService assistantMemoryService;
 
     public AssistantChatResponse chat(AssistantChatRequest request) {
+        String sessionId = assistantMemoryService.ensureSessionId(request == null ? null : request.sessionId());
         String message = extractMessage(request);
         requestValidator.validateMessage(message);
         requestValidator.validateApiKey(assistantProperties.getApiKey());
 
-        AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(message);
+        ConversationContext preprocessContext = assistantMemoryService.loadContext(sessionId, message);
+        String preprocessInput = assistantMemoryService.buildPreprocessInput(message, preprocessContext);
+        AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(preprocessInput);
         if (!preprocessResult.success()) {
             throw new BusinessException(preprocessResult.message());
         }
 
-        Msg response = createAgent().call(List.of(createUserMessage(preprocessResult.message()))).block();
+        ConversationContext context = assistantMemoryService.loadContext(sessionId, preprocessResult.message());
+        assistantMemoryService.appendMessage(sessionId, "user", message);
+        String prompt = assistantMemoryService.buildPromptWithMemory(preprocessResult.message(), context);
+
+        Msg response = createAgent().call(List.of(createUserMessage(prompt))).block();
         String answer = response == null ? AssistantErrorMessagesConstant.EMPTY_MODEL_RESPONSE : response.getTextContent();
-        return new AssistantChatResponse(true, answer);
+        assistantMemoryService.appendMessage(sessionId, "assistant", answer);
+        assistantMemoryService.summarizeIfNecessary(sessionId);
+        return new AssistantChatResponse(true, sessionId, answer);
     }
 
     public Flux<AssistantStreamEvent> streamChat(AssistantChatRequest request) {
-        String message = extractMessage(request);
-        requestValidator.validateMessage(message);
-        requestValidator.validateApiKey(assistantProperties.getApiKey());
+        return Flux.defer(() -> {
+            String sessionId = assistantMemoryService.ensureSessionId(request == null ? null : request.sessionId());
+            String message = extractMessage(request);
+            requestValidator.validateMessage(message);
+            requestValidator.validateApiKey(assistantProperties.getApiKey());
 
-        AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(message);
-        if (!preprocessResult.success()) {
-            return Flux.error(new BusinessException(preprocessResult.message()));
-        }
+            ConversationContext preprocessContext = assistantMemoryService.loadContext(sessionId, message);
+            String preprocessInput = assistantMemoryService.buildPreprocessInput(message, preprocessContext);
+            AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(preprocessInput);
+            if (!preprocessResult.success()) {
+                return Flux.just(errorEvent(preprocessResult.message()));
+            }
 
-        StreamOptions streamOptions = StreamOptions.builder()
-                .eventTypes(EventType.ALL)
-                .incremental(true)
-                .build();
+            StreamOptions streamOptions = StreamOptions.builder()
+                    .eventTypes(EventType.ALL)
+                    .incremental(true)
+                    .build();
 
-        return createAgent()
-                .stream(List.of(createUserMessage(preprocessResult.message())), streamOptions)
-                .map(this::toStreamEvent);
+            ConversationContext context = assistantMemoryService.loadContext(sessionId, preprocessResult.message());
+            assistantMemoryService.appendMessage(sessionId, "user", message);
+            String prompt = assistantMemoryService.buildPromptWithMemory(preprocessResult.message(), context);
+
+            return createAgent()
+                    .stream(List.of(createUserMessage(prompt)), streamOptions)
+                    .doOnNext(event -> {
+                        if (event.isLast() && event.getMessage() != null && event.getMessage().getTextContent() != null) {
+                            assistantMemoryService.appendMessage(sessionId, "assistant", event.getMessage().getTextContent());
+                            assistantMemoryService.summarizeIfNecessary(sessionId);
+                        }
+                    })
+                    .map(this::toStreamEvent)
+                    .onErrorResume(ex -> Flux.just(errorEvent(ex.getMessage())));
+        });
     }
 
     private ReActAgent createAgent() {
@@ -95,6 +123,16 @@ public class AssistantService {
                 message == null || message.getRole() == null ? null : message.getRole().name(),
                 message == null ? null : message.getTextContent(),
                 event.getMessageId()
+        );
+    }
+
+    private AssistantStreamEvent errorEvent(String message) {
+        return new AssistantStreamEvent(
+                "error",
+                true,
+                "ASSISTANT",
+                message == null || message.isBlank() ? "系统繁忙，请稍后重试" : message,
+                null
         );
     }
 

@@ -1,6 +1,8 @@
 package com.ming.agent12306.config;
 
 import com.ming.agent12306.properties.AssistantProperties;
+import io.agentscope.core.embedding.EmbeddingModel;
+import io.agentscope.core.embedding.dashscope.DashScopeTextEmbedding;
 import com.ming.agent12306.properties.McpProperties;
 import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.tool.Toolkit;
@@ -22,6 +24,15 @@ public class AgentScopeConfig {
         return DashScopeChatModel.builder()
                 .apiKey(assistantProperties.getApiKey())
                 .modelName(assistantProperties.getModel())
+                .build();
+    }
+
+    @Bean
+    public EmbeddingModel embeddingModel(AssistantProperties assistantProperties) {
+        return DashScopeTextEmbedding.builder()
+                .apiKey(assistantProperties.getApiKey())
+                .modelName("text-embedding-v4")
+                .dimensions(1024)
                 .build();
     }
 

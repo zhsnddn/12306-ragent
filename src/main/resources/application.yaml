@@ -1,6 +1,14 @@
 spring:
   application:
     name: 12306-ragent
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/agent12306?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
 
 assistant:
   model: qwen-max
@@ -14,3 +22,16 @@ assistant:
     jar-path: ../12306-mcp/target/12306-mcp-0.0.1-SNAPSHOT.jar
     timeout-seconds: 30
     initialization-timeout-seconds: 30
+  memory:
+    enabled: true
+    window-size: 6
+    summary-batch-size: 4
+    recall-top-k: 3
+    recall-score-threshold: 0.6
+    ttl-hours: 24
+    milvus:
+      enabled: false
+      uri: ${MILVUS_URI:http://127.0.0.1:19530}
+      collection-name: assistant_memory
+      dimensions: 1024
+      token: ${MILVUS_TOKEN:}

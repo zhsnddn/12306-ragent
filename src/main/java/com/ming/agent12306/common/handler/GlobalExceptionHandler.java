@@ -13,12 +13,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AssistantChatResponse handleBusinessException(BusinessException ex) {
-        return new AssistantChatResponse(false, ex.getMessage());
+        return new AssistantChatResponse(false, null, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public AssistantChatResponse handleException(Exception ex) {
-        return new AssistantChatResponse(false, "系统繁忙，请稍后重试");
+        return new AssistantChatResponse(false, null, "系统繁忙，请稍后重试");
     }
 }
