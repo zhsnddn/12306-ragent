@@ -1,5 +1,10 @@
 package com.ming.agent12306.service;
 
+import com.ming.agent12306.common.preprocess.AssistantMessagePreprocessor;
+import com.ming.agent12306.common.preprocess.AssistantPreprocessResult;
+import com.ming.agent12306.common.validation.AssistantRequestValidator;
+import com.ming.agent12306.common.constant.AssistantErrorMessagesConstant;
+import com.ming.agent12306.common.exception.BusinessException;
 import com.ming.agent12306.model.request.AssistantChatRequest;
 import com.ming.agent12306.model.response.AssistantChatResponse;
 import com.ming.agent12306.model.response.AssistantStreamEvent;
@@ -12,55 +17,45 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.tool.Toolkit;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AssistantService {
 
     private final AssistantProperties assistantProperties;
     private final DashScopeChatModel dashScopeChatModel;
     private final Toolkit toolkit;
-
-    public AssistantService(
-            AssistantProperties assistantProperties,
-            DashScopeChatModel dashScopeChatModel,
-            Toolkit toolkit) {
-        this.assistantProperties = assistantProperties;
-        this.dashScopeChatModel = dashScopeChatModel;
-        this.toolkit = toolkit;
-    }
+    private final AssistantMessagePreprocessor messagePreprocessor;
+    private final AssistantRequestValidator requestValidator;
 
     public AssistantChatResponse chat(AssistantChatRequest request) {
         String message = extractMessage(request);
-        if (!StringUtils.hasText(message)) {
-            return new AssistantChatResponse(false, "message 不能为空");
-        }
-        if (!hasApiKey()) {
-            return new AssistantChatResponse(false, "未配置 assistant.api-key 或环境变量 DASHSCOPE_API_KEY");
+        requestValidator.validateMessage(message);
+        requestValidator.validateApiKey(assistantProperties.getApiKey());
+
+        AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(message);
+        if (!preprocessResult.success()) {
+            throw new BusinessException(preprocessResult.message());
         }
 
-        Msg response = createAgent().call(List.of(createUserMessage(message))).block();
-        String answer = response == null ? "未获取到模型响应" : response.getTextContent();
+        Msg response = createAgent().call(List.of(createUserMessage(preprocessResult.message()))).block();
+        String answer = response == null ? AssistantErrorMessagesConstant.EMPTY_MODEL_RESPONSE : response.getTextContent();
         return new AssistantChatResponse(true, answer);
     }
 
     public Flux<AssistantStreamEvent> streamChat(AssistantChatRequest request) {
         String message = extractMessage(request);
-        if (!StringUtils.hasText(message)) {
-            return Flux.just(new AssistantStreamEvent("error", true, MsgRole.SYSTEM.name(), "message 不能为空", null));
-        }
-        if (!hasApiKey()) {
-            return Flux.just(new AssistantStreamEvent(
-                    "error",
-                    true,
-                    MsgRole.SYSTEM.name(),
-                    "未配置 assistant.api-key 或环境变量 DASHSCOPE_API_KEY",
-                    null
-            ));
+        requestValidator.validateMessage(message);
+        requestValidator.validateApiKey(assistantProperties.getApiKey());
+
+        AssistantPreprocessResult preprocessResult = messagePreprocessor.preprocess(message);
+        if (!preprocessResult.success()) {
+            return Flux.error(new BusinessException(preprocessResult.message()));
         }
 
         StreamOptions streamOptions = StreamOptions.builder()
@@ -69,7 +64,7 @@ public class AssistantService {
                 .build();
 
         return createAgent()
-                .stream(List.of(createUserMessage(message)), streamOptions)
+                .stream(List.of(createUserMessage(preprocessResult.message())), streamOptions)
                 .map(this::toStreamEvent);
     }
 
@@ -101,10 +96,6 @@ public class AssistantService {
                 message == null ? null : message.getTextContent(),
                 event.getMessageId()
         );
-    }
-
-    private boolean hasApiKey() {
-        return StringUtils.hasText(assistantProperties.getApiKey());
     }
 
     private String extractMessage(AssistantChatRequest request) {

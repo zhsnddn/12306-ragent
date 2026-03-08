@@ -4,6 +4,7 @@ import com.ming.agent12306.model.request.AssistantChatRequest;
 import com.ming.agent12306.model.response.AssistantChatResponse;
 import com.ming.agent12306.model.response.AssistantStreamEvent;
 import com.ming.agent12306.service.AssistantService;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,12 +29,12 @@ public class AssistantController {
     }
 
     @PostMapping("/chat")
-    public AssistantChatResponse chat(@RequestBody AssistantChatRequest request) {
+    public AssistantChatResponse chat(@Valid @RequestBody AssistantChatRequest request) {
         return assistantService.chat(request);
     }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamChat(@RequestBody AssistantChatRequest request) {
+    public SseEmitter streamChat(@Valid @RequestBody AssistantChatRequest request) {
         SseEmitter emitter = new SseEmitter(0L);
         assistantService.streamChat(request).subscribe(
                 event -> sendEvent(emitter, event),
