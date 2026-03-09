@@ -7,6 +7,7 @@ import com.ming.agent12306.common.constant.AssistantErrorMessagesConstant;
 import com.ming.agent12306.common.exception.BusinessException;
 import com.ming.agent12306.memory.model.ConversationContext;
 import com.ming.agent12306.memory.service.AssistantMemoryService;
+import com.ming.agent12306.knowledge.service.KnowledgeRetrievalService;
 import com.ming.agent12306.model.request.AssistantChatRequest;
 import com.ming.agent12306.model.response.AssistantChatResponse;
 import com.ming.agent12306.model.response.AssistantStreamEvent;
@@ -35,6 +36,7 @@ public class AssistantService {
     private final AssistantMessagePreprocessor messagePreprocessor;
     private final AssistantRequestValidator requestValidator;
     private final AssistantMemoryService assistantMemoryService;
+    private final KnowledgeRetrievalService knowledgeRetrievalService;
 
     public AssistantChatResponse chat(AssistantChatRequest request) {
         String sessionId = assistantMemoryService.ensureSessionId(request == null ? null : request.sessionId());
@@ -52,6 +54,7 @@ public class AssistantService {
         ConversationContext context = assistantMemoryService.loadContext(sessionId, preprocessResult.message());
         assistantMemoryService.appendMessage(sessionId, "user", message);
         String prompt = assistantMemoryService.buildPromptWithMemory(preprocessResult.message(), context);
+        prompt = knowledgeRetrievalService.enrichPrompt(message, prompt);
 
         Msg response = createAgent().call(List.of(createUserMessage(prompt))).block();
         String answer = response == null ? AssistantErrorMessagesConstant.EMPTY_MODEL_RESPONSE : response.getTextContent();
@@ -82,6 +85,7 @@ public class AssistantService {
             ConversationContext context = assistantMemoryService.loadContext(sessionId, preprocessResult.message());
             assistantMemoryService.appendMessage(sessionId, "user", message);
             String prompt = assistantMemoryService.buildPromptWithMemory(preprocessResult.message(), context);
+            prompt = knowledgeRetrievalService.enrichPrompt(message, prompt);
 
             return createAgent()
                     .stream(List.of(createUserMessage(prompt)), streamOptions)

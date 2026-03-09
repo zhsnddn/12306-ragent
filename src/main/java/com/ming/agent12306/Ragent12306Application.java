@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@MapperScan("com.ming.agent12306.memory.mapper")
+@MapperScan({"com.ming.agent12306.memory.mapper", "com.ming.agent12306.knowledge.mapper"})
 public class Ragent12306Application {
 
     public static void main(String[] args) {

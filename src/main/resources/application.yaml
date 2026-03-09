@@ -35,3 +35,21 @@ assistant:
       collection-name: assistant_memory
       dimensions: 1024
       token: ${MILVUS_TOKEN:}
+  knowledge:
+    enabled: true
+    chunk-size: 800
+    chunk-overlap: 120
+    recall-top-k: 4
+    recall-score-threshold: 0.45
+    storage:
+      endpoint: ${RUSTFS_ENDPOINT:http://127.0.0.1:9000}
+      access-key: ${RUSTFS_ACCESS_KEY:rustfsadmin}
+      secret-key: ${RUSTFS_SECRET_KEY:rustfsadmin}
+      bucket-name: ${RUSTFS_BUCKET:agent12306-knowledge}
+      region: ${RUSTFS_REGION:us-east-1}
+    milvus:
+      enabled: true
+      uri: ${MILVUS_URI:http://127.0.0.1:19530}
+      collection-name: assistant_knowledge
+      dimensions: 1024
+      token: ${MILVUS_TOKEN:}

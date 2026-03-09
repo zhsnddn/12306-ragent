@@ -13,9 +13,9 @@ const SAMPLE_PROMPTS = [
     note: "测试经停站和参数提取"
   },
   {
-    title: "记忆测试",
-    message: "记住我偏好上午出发、二等座、预算 600 以内",
-    note: "第二轮继续问查票，观察 session 记忆"
+    title: "规则问答",
+    message: "候补购票什么时候兑现，开车前还能改签吗",
+    note: "测试 RAG 检索增强"
   }
 ];
 
@@ -24,20 +24,38 @@ const DEBUG_EVENT_TYPES = new Set(["reasoning", "tool_result", "summary", "promp
 export default function App() {
   const [sessionId, setSessionId] = useState(() => window.localStorage.getItem(STORAGE_KEY) || "");
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("帮我查一下明天北京到上海的高铁车票，优先二等座");
+  const [input, setInput] = useState("候补购票什么时候兑现，开车前还能改签吗");
   const [streaming, setStreaming] = useState(false);
   const [health, setHealth] = useState("检查中");
   const [errorText, setErrorText] = useState("");
   const [mode, setMode] = useState("stream");
   const [eventLog, setEventLog] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [documentError, setDocumentError] = useState("");
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStageText, setUploadStageText] = useState("");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("rule");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [knowledgeQuery, setKnowledgeQuery] = useState("候补什么时候兑现");
+  const [knowledgeResults, setKnowledgeResults] = useState([]);
+  const [searchingKnowledge, setSearchingKnowledge] = useState(false);
   const abortRef = useRef(null);
+  const uploadPollRef = useRef(null);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetch("/api/assistant")
       .then((response) => response.text())
       .then(() => setHealth("服务已连接"))
       .catch(() => setHealth("服务未连接"));
+  }, []);
+
+  useEffect(() => {
+    loadDocuments();
   }, []);
 
   useEffect(() => {
@@ -55,7 +73,106 @@ export default function App() {
     }
   }, [messages, streaming]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    stopDocumentPolling();
+  }, []);
+
+  async function loadDocuments(silent = false) {
+    if (!silent) {
+      setLoadingDocuments(true);
+      setDocumentError("");
+    }
+    try {
+      const response = await fetch("/api/knowledge/documents");
+      if (!response.ok) {
+        throw new Error(`文档列表获取失败: ${response.status}`);
+      }
+      const payload = await response.json();
+      const nextDocuments = Array.isArray(payload) ? payload : [];
+      setDocuments(nextDocuments);
+      const currentActive = nextDocuments.find((item) => item.parseStatus !== "READY" && item.parseStatus !== "FAILED");
+      if (currentActive?.progressMessage) {
+        setUploadStageText(currentActive.progressMessage);
+      }
+    } catch (error) {
+      if (!silent) {
+        setDocumentError(error.message || "文档列表获取失败");
+      }
+    } finally {
+      if (!silent) {
+        setLoadingDocuments(false);
+      }
+    }
+  }
+
+  async function handleUpload(event) {
+    event.preventDefault();
+    if (!selectedFile || uploading) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    if (title.trim()) {
+      formData.append("title", title.trim());
+    }
+    if (category.trim()) {
+      formData.append("category", category.trim());
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadStageText("准备上传");
+    setDocumentError("");
+    startDocumentPolling();
+    try {
+      const payload = await uploadDocument(formData, (progress) => {
+        setUploadProgress(progress);
+        setUploadStageText(progress < 100 ? `文件上传中 ${progress}%` : "文件已传输，等待后端处理");
+      });
+
+      setTitle("");
+      setCategory("rule");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      await loadDocuments();
+      setKnowledgeQuery(payload.title || knowledgeQuery);
+    } catch (error) {
+      setDocumentError(error.message || "文档上传失败");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      setUploadStageText("");
+      stopDocumentPolling();
+    }
+  }
+
+  async function handleKnowledgeSearch(event) {
+    event.preventDefault();
+    const query = knowledgeQuery.trim();
+    if (!query || searchingKnowledge) {
+      return;
+    }
+
+    setSearchingKnowledge(true);
+    setDocumentError("");
+    try {
+      const response = await fetch(`/api/knowledge/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error(`知识检索失败: ${response.status}`);
+      }
+      const payload = await response.json();
+      setKnowledgeResults(Array.isArray(payload) ? payload : []);
+    } catch (error) {
+      setDocumentError(error.message || "知识检索失败");
+      setKnowledgeResults([]);
+    } finally {
+      setSearchingKnowledge(false);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -248,7 +365,41 @@ export default function App() {
     setStreaming(false);
   }
 
+  async function handleDeleteDocument(documentId) {
+    if (!window.confirm("确认删除这份文档吗？")) {
+      return;
+    }
+    setDocumentError("");
+    try {
+      const response = await fetch(`/api/knowledge/documents/${documentId}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) {
+        throw new Error(`删除失败: ${response.status}`);
+      }
+      setKnowledgeResults((previous) => previous.filter((item) => item.documentId !== documentId));
+      await loadDocuments();
+    } catch (error) {
+      setDocumentError(error.message || "删除文档失败");
+    }
+  }
+
+  function startDocumentPolling() {
+    stopDocumentPolling();
+    uploadPollRef.current = window.setInterval(() => {
+      loadDocuments(true);
+    }, 1200);
+  }
+
+  function stopDocumentPolling() {
+    if (uploadPollRef.current) {
+      window.clearInterval(uploadPollRef.current);
+      uploadPollRef.current = null;
+    }
+  }
+
   const messageCount = messages.filter((item) => item.role === "user").length;
+  const activeDocument = documents.find((item) => item.parseStatus !== "READY" && item.parseStatus !== "FAILED") || null;
 
   return (
     <div className="app-shell">
@@ -257,7 +408,7 @@ export default function App() {
           <span className="brand-eyebrow">React Client</span>
           <div className="brand-title">12306 Assistant</div>
           <p className="brand-copy">
-            独立 React 子项目，专门用于联调流式回复、多轮对话和 MySQL + Milvus 记忆链路。
+            现在前端同时支持多轮聊天调试和 RAG 知识库管理，可直接在页面完成文档上传、检索测试和规则问答联调。
           </p>
         </div>
 
@@ -316,7 +467,7 @@ export default function App() {
         <section className="sample-card">
           <div className="status-line">
             <span className="status-label">快速测试</span>
-            <span className="status-pill">3 条样例</span>
+            <span className="status-pill">{SAMPLE_PROMPTS.length} 条样例</span>
           </div>
           <div className="sample-list">
             {SAMPLE_PROMPTS.map((item) => (
@@ -351,75 +502,190 @@ export default function App() {
         </section>
       </aside>
 
-      <main className="chat-panel panel">
-        <header className="chat-header">
-          <div>
-            <h1 className="chat-title">多轮记忆调试台</h1>
-            <p className="chat-subtitle">
-              前端走独立 Vite 开发服务器，接口通过代理转发到 Spring Boot。
-            </p>
-          </div>
-          <div className="chat-status">{streaming ? "模型正在生成" : "等待输入"}</div>
-        </header>
-
-        <section className="messages" ref={scrollRef}>
-          {messages.length === 0 ? (
-            <div className="welcome-card">
-              <h2>先提第一轮，再连续追问</h2>
-              <p>
-                第一轮会建立 session。第二轮开始继续问同一件事，才能真实观察滑动窗口、摘要和长期记忆召回。
+      <div className="main-stack">
+        <main className="chat-panel panel">
+          <header className="chat-header">
+            <div>
+              <h1 className="chat-title">多轮问答调试台</h1>
+              <p className="chat-subtitle">
+                前端走独立 Vite 开发服务器，聊天请求和知识库接口统一代理到 Spring Boot。
               </p>
             </div>
-          ) : null}
+            <div className="chat-status">{streaming ? "模型正在生成" : "等待输入"}</div>
+          </header>
 
-          {messages.map((message) => (
-            <article key={message.id} className={`message ${message.role}`}>
-              <div className="avatar">{message.role === "user" ? "YOU" : "AI"}</div>
-              <div className="bubble-wrap">
-                <div className="bubble">
-                  {message.text || (message.role === "assistant" && streaming ? (
-                    <span className="typing"><span></span><span></span><span></span></span>
-                  ) : null)}
-                </div>
-                <div className="meta-row">
-                  <span>{message.role === "user" ? "用户" : "助手"}</span>
-                  <span>{message.timestamp}</span>
-                </div>
-                {message.events?.length ? (
-                  <details className="debug-card">
-                    <summary>查看本轮调试事件</summary>
-                    <div className="debug-log">
-                      {message.events.map((eventItem, index) => (
-                        <div key={`${message.id}-${index}`} className="debug-log-item">
-                          <strong>{eventItem.type}</strong> {eventItem.text || "无文本载荷"}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                ) : null}
+          <section className="messages" ref={scrollRef}>
+            {messages.length === 0 ? (
+              <div className="welcome-card">
+                <h2>先导入规则文档，再问规则问题</h2>
+                <p>
+                  上传 12306 规则文档后，可以直接问“候补什么时候兑现”“退票规则是什么”。RAG 会先检索，再把知识片段拼进模型上下文。
+                </p>
               </div>
-            </article>
-          ))}
-        </section>
+            ) : null}
 
-        <form className="composer" onSubmit={handleSubmit}>
-          <div className="composer-frame">
-            <textarea
-              value={input}
-              placeholder="输入你的 12306 问题，例如：帮我查一下明天北京到上海的高铁车票，优先二等座"
-              onChange={(event) => setInput(event.target.value)}
-              disabled={streaming}
-            />
-            <button className="solid-button" type="submit" disabled={streaming || !input.trim()}>
-              {streaming ? "生成中..." : mode === "stream" ? "发送问题" : "同步请求"}
+            {messages.map((message) => (
+              <article key={message.id} className={`message ${message.role}`}>
+                <div className="avatar">{message.role === "user" ? "YOU" : "AI"}</div>
+                <div className="bubble-wrap">
+                  <div className="bubble">
+                    {message.text || (message.role === "assistant" && streaming ? (
+                      <span className="typing"><span></span><span></span><span></span></span>
+                    ) : null)}
+                  </div>
+                  <div className="meta-row">
+                    <span>{message.role === "user" ? "用户" : "助手"}</span>
+                    <span>{message.timestamp}</span>
+                  </div>
+                  {message.events?.length ? (
+                    <details className="debug-card">
+                      <summary>查看本轮调试事件</summary>
+                      <div className="debug-log">
+                        {message.events.map((eventItem, index) => (
+                          <div key={`${message.id}-${index}`} className="debug-log-item">
+                            <strong>{eventItem.type}</strong> {eventItem.text || "无文本载荷"}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <form className="composer" onSubmit={handleSubmit}>
+            <div className="composer-frame">
+              <textarea
+                value={input}
+                placeholder="输入你的 12306 问题，例如：候补购票什么时候兑现，开车前还能改签吗"
+                onChange={(event) => setInput(event.target.value)}
+                disabled={streaming}
+              />
+              <button className="solid-button" type="submit" disabled={streaming || !input.trim()}>
+                {streaming ? "生成中..." : mode === "stream" ? "发送问题" : "同步请求"}
+              </button>
+            </div>
+            <div className="composer-hint">
+              <span>{errorText || "前端会自动保存 sessionId，刷新后仍可继续同一会话。"}</span>
+              <span>{streaming ? "请求进行中" : mode === "stream" ? "SSE 已就绪" : "同步模式已就绪"}</span>
+            </div>
+          </form>
+        </main>
+
+        <section className="knowledge-panel panel">
+          <header className="knowledge-header">
+            <div>
+              <h2 className="knowledge-title">知识库工作台</h2>
+              <p className="knowledge-subtitle">RustFS 存文件，Tika 解析文本，Milvus 存向量，MySQL 存元数据。</p>
+            </div>
+            <button className="ghost-button compact-button" type="button" onClick={loadDocuments} disabled={loadingDocuments}>
+              {loadingDocuments ? "刷新中..." : "刷新列表"}
             </button>
+          </header>
+
+          <div className="knowledge-grid">
+            <section className="knowledge-card">
+              <div className="section-title">导入文档</div>
+              <form className="knowledge-form" onSubmit={handleUpload}>
+                <label className="field">
+                  <span>文档标题</span>
+                  <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="默认使用文件名" />
+                </label>
+                <label className="field">
+                  <span>文档分类</span>
+                  <input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="例如：rule / faq / policy" />
+                </label>
+                <label className="field">
+                  <span>选择文件</span>
+                  <input ref={fileInputRef} type="file" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
+                </label>
+                <button className="solid-button wide-button" type="submit" disabled={!selectedFile || uploading}>
+                  {uploading ? "上传处理中..." : "上传并入库"}
+                </button>
+                {uploading ? (
+                  <div className="upload-progress-card">
+                    <div className="upload-progress-line">
+                      <span>传输进度</span>
+                      <strong>{uploadProgress}%</strong>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-bar" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                    <div className="upload-stage-text">
+                      {activeDocument?.progressMessage || uploadStageText || "等待后端处理"}
+                    </div>
+                  </div>
+                ) : null}
+              </form>
+            </section>
+
+            <section className="knowledge-card">
+              <div className="section-title">检索测试</div>
+              <form className="knowledge-form" onSubmit={handleKnowledgeSearch}>
+                <label className="field">
+                  <span>检索问题</span>
+                  <textarea
+                    className="knowledge-query"
+                    value={knowledgeQuery}
+                    onChange={(event) => setKnowledgeQuery(event.target.value)}
+                    placeholder="例如：候补什么时候兑现"
+                  />
+                </label>
+                <button className="solid-button wide-button" type="submit" disabled={!knowledgeQuery.trim() || searchingKnowledge}>
+                  {searchingKnowledge ? "检索中..." : "测试召回"}
+                </button>
+              </form>
+
+              <div className="knowledge-results">
+                {knowledgeResults.length === 0 ? (
+                  <div className="empty-event">还没有检索结果</div>
+                ) : knowledgeResults.map((item, index) => (
+                  <article key={`${item.documentId}-${index}`} className="result-card">
+                    <div className="result-source">
+                      <strong>{item.title || item.documentId}</strong>
+                      <span>{item.category || "未分类"}</span>
+                    </div>
+                    <div className="result-content">{item.content}</div>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
-          <div className="composer-hint">
-            <span>{errorText || "前端会自动保存 sessionId，刷新后仍可继续同一会话。"}</span>
-            <span>{streaming ? "请求进行中" : mode === "stream" ? "SSE 已就绪" : "同步模式已就绪"}</span>
-          </div>
-        </form>
-      </main>
+
+          <section className="knowledge-card document-card">
+            <div className="status-line">
+              <span className="section-title">文档列表</span>
+              <span className="status-pill">{documents.length}</span>
+            </div>
+            {documentError ? <div className="error-banner">{documentError}</div> : null}
+            <div className="document-table">
+              {documents.length === 0 ? (
+                <div className="empty-event">还没有导入文档</div>
+              ) : documents.map((item) => (
+                <div key={item.documentId} className="document-row">
+                  <div className="document-main">
+                    <strong>{item.title}</strong>
+                    <span>{item.fileName}</span>
+                  </div>
+                  <div className="document-meta">
+                    <span>{item.category || "未分类"}</span>
+                    <span>{item.parseStatus}</span>
+                    <span>{item.chunkCount} chunks</span>
+                    <span>{item.uploadedAt ? `上传于 ${formatDateTime(item.uploadedAt)}` : "上传时间未知"}</span>
+                  </div>
+                  <div className="document-side">
+                    <span className="document-progress">{item.progressMessage || "状态已同步"}</span>
+                    <button className="ghost-button compact-button" type="button" onClick={() => handleDeleteDocument(item.documentId)}>
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </section>
+      </div>
     </div>
   );
 }
@@ -445,6 +711,35 @@ async function fetchSessionId(message) {
   }
   const data = await response.json();
   return data.sessionId || "";
+}
+
+function uploadDocument(formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/knowledge/documents");
+    xhr.responseType = "json";
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) {
+        return;
+      }
+      const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+      onProgress(percent);
+    };
+
+    xhr.onload = () => {
+      const payload = xhr.response;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(100);
+        resolve(payload);
+        return;
+      }
+      reject(new Error(payload?.answer || payload?.message || `上传失败: ${xhr.status}`));
+    };
+
+    xhr.onerror = () => reject(new Error("上传失败，请检查网络或后端服务"));
+    xhr.send(formData);
+  });
 }
 
 async function consumeSseStream(body, onEvent) {
@@ -492,6 +787,19 @@ async function consumeSseStream(body, onEvent) {
 
 function formatTime(date) {
   return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
