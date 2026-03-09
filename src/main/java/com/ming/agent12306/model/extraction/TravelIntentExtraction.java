@@ -16,6 +16,8 @@ public class TravelIntentExtraction {
     private String travelDateNormalized;
     private String departureTimePreference;
     private String seatPreference;
+    private Boolean needKnowledgeRetrieve;
+    private Boolean fallbackToRuleWhenNoTicket;
     private Boolean needClarification;
     private String clarificationQuestion;
 }

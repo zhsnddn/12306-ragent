@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public record AssistantChatResponse(
         boolean success,
         String sessionId,
-        String answer
+        String answer,
+        AssistantStructuredAnswer structuredAnswer
 ) {
 }

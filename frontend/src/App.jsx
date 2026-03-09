@@ -529,9 +529,7 @@ export default function App() {
                 <div className="avatar">{message.role === "user" ? "YOU" : "AI"}</div>
                 <div className="bubble-wrap">
                   <div className="bubble">
-                    {message.text || (message.role === "assistant" && streaming ? (
-                      <span className="typing"><span></span><span></span><span></span></span>
-                    ) : null)}
+                    <MessageText message={message} streaming={streaming} />
                   </div>
                   <div className="meta-row">
                     <span>{message.role === "user" ? "用户" : "助手"}</span>
@@ -696,6 +694,87 @@ function makeEvent(type, text) {
     type,
     text
   };
+}
+
+function MessageText({ message, streaming }) {
+  const [displayText, setDisplayText] = useState(() => message.role === "assistant" ? "" : (message.text || ""));
+  const textRef = useRef(displayText);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    textRef.current = displayText;
+  }, [displayText]);
+
+  useEffect(() => () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (message.role !== "assistant") {
+      setDisplayText(message.text || "");
+      return;
+    }
+
+    const target = message.text || "";
+    if (!target) {
+      setDisplayText("");
+      return;
+    }
+
+    if (!target.startsWith(textRef.current)) {
+      textRef.current = "";
+      setDisplayText("");
+    }
+
+    if (textRef.current === target) {
+      return;
+    }
+
+    const typeNext = () => {
+      const current = textRef.current;
+      if (current === target) {
+        timerRef.current = null;
+        return;
+      }
+      const remaining = target.length - current.length;
+      const step = remaining > 72 ? 8 : remaining > 36 ? 4 : remaining > 12 ? 2 : 1;
+      const next = target.slice(0, current.length + step);
+      textRef.current = next;
+      setDisplayText(next);
+      if (next !== target) {
+        timerRef.current = window.setTimeout(typeNext, 16);
+      } else {
+        timerRef.current = null;
+      }
+    };
+
+    timerRef.current = window.setTimeout(typeNext, 16);
+    return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [message.id, message.role, message.text]);
+
+  if (!displayText && message.role === "assistant" && streaming) {
+    return <span className="typing"><span></span><span></span><span></span></span>;
+  }
+
+  const typing = message.role === "assistant" && displayText && displayText !== (message.text || "");
+
+  return (
+    <span className={`message-text ${typing ? "typing-active" : ""}`}>
+      {displayText}
+    </span>
+  );
 }
 
 async function fetchSessionId(message) {

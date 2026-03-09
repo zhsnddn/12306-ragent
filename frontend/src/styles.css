@@ -376,6 +376,22 @@ button {
   word-break: break-word;
 }
 
+.message-text {
+  display: inline;
+  white-space: pre-wrap;
+}
+
+.message-text.typing-active::after {
+  content: "";
+  display: inline-block;
+  width: 0.08em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  background: currentColor;
+  animation: caret-blink 0.9s steps(1) infinite;
+}
+
 .message.user .bubble {
   background: linear-gradient(135deg, #174d4b 0%, #0f766e 100%);
   color: #fff;
@@ -491,6 +507,17 @@ button {
   40% {
     transform: translateY(-4px);
     opacity: 1;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
   }
 }
 
