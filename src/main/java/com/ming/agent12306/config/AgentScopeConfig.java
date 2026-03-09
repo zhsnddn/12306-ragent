@@ -8,6 +8,7 @@ import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientBuilder;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -64,8 +65,9 @@ public class AgentScopeConfig {
     }
 
     @Bean
-    public Toolkit toolkit(McpClientWrapper mcpClientWrapper) {
+    public Toolkit toolkit(ObjectProvider<McpClientWrapper> mcpClientWrapperProvider) {
         Toolkit toolkit = new Toolkit();
+        McpClientWrapper mcpClientWrapper = mcpClientWrapperProvider.getIfAvailable();
         if (mcpClientWrapper != null) {
             mcpClientWrapper.initialize().block();
             toolkit.registerMcpClient(mcpClientWrapper).block();

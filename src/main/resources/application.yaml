@@ -53,3 +53,8 @@ assistant:
       collection-name: assistant_knowledge
       dimensions: 1024
       token: ${MILVUS_TOKEN:}
+
+sso:
+  server-url: ${SSO_SERVER_URL:http://localhost:9006}
+  client: ${SSO_CLIENT:agent12306-client}
+  callback-url: ${SSO_CALLBACK_URL:http://localhost:8080/sso/callback}
