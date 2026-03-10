@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+/** 智能助手对话接口控制器 */
 @RestController
 @RequestMapping("/api/assistant")
 public class AssistantController {

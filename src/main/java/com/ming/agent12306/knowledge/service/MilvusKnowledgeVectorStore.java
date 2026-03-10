@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/** 基于 Milvus 的知识向量存储实现 */
 @Component
 @ConditionalOnProperty(prefix = "assistant.knowledge.milvus", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class MilvusKnowledgeVectorStore implements KnowledgeVectorStore, AutoCloseable {

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+/** 知识文档解析服务 */
 @Component
 public class KnowledgeDocumentParser {
 

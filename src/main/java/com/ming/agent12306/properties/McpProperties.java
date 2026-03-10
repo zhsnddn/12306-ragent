@@ -3,6 +3,7 @@ package com.ming.agent12306.properties;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/** MCP 工具配置属性 */
 @Data
 @ConfigurationProperties(prefix = "assistant.mcp")
 public class McpProperties {

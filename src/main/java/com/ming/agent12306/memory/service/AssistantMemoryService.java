@@ -8,6 +8,7 @@ import com.ming.agent12306.memory.mapper.ConversationSessionMapper;
 import com.ming.agent12306.memory.model.ConversationContext;
 import com.ming.agent12306.memory.model.ConversationMessage;
 import com.ming.agent12306.properties.AssistantMemoryProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/** 智能助手会话记忆管理服务 */
 @Service
+@RequiredArgsConstructor
 public class AssistantMemoryService {
 
     private static final DateTimeFormatter MEMORY_VECTOR_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -28,18 +31,6 @@ public class AssistantMemoryService {
     private final ConversationSummaryGenerator summaryGenerator;
     private final MemoryVectorStore vectorStore;
 
-    public AssistantMemoryService(
-            AssistantMemoryProperties memoryProperties,
-            ConversationSessionMapper sessionMapper,
-            ConversationMessageMapper messageMapper,
-            ConversationSummaryGenerator summaryGenerator,
-            MemoryVectorStore vectorStore) {
-        this.memoryProperties = memoryProperties;
-        this.sessionMapper = sessionMapper;
-        this.messageMapper = messageMapper;
-        this.summaryGenerator = summaryGenerator;
-        this.vectorStore = vectorStore;
-    }
 
     public String ensureSessionId(String sessionId) {
         return sessionId != null && !sessionId.isBlank() ? sessionId : UUID.randomUUID().toString();

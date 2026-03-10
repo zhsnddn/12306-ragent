@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/** 记忆向量存储空实现 */
 @Component
 @ConditionalOnProperty(prefix = "assistant.memory.milvus", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class NoopMemoryVectorStore implements MemoryVectorStore {

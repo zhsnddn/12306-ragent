@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** 知识库检索增强服务 */
 @Service
 public class KnowledgeRetrievalService {
 

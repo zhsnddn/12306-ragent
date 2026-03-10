@@ -5,6 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
+/** 12306 智能助手应用启动入口 */
 @SpringBootApplication
 @ConfigurationPropertiesScan
 @MapperScan({"com.ming.agent12306.memory.mapper", "com.ming.agent12306.knowledge.mapper"})

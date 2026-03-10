@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/** 知识文档实体类 */
 @Data
 @TableName("knowledge_document")
 public class KnowledgeDocumentEntity {

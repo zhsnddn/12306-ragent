@@ -1,5 +1,6 @@
 package com.ming.agent12306.plan.model;
 
+/** Plan 步骤类型定义 */
 public enum PlanStepType {
     EXTRACT_INTENT(0, "EXTRACT_INTENT", "提取出行参数"),
     QUERY_TICKET(1, "QUERY_TICKET", "调用票务工具"),

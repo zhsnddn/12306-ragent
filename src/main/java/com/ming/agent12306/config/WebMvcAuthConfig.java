@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/** Web 登录鉴权拦截配置 */
 @Configuration
 public class WebMvcAuthConfig implements WebMvcConfigurer {
 

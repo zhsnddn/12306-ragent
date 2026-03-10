@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+/** 登录态校验拦截器 */
 @Component
 public class LoginRequiredInterceptor implements HandlerInterceptor {
 

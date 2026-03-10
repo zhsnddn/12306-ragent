@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/** 会话摘要生成服务 */
 @Component
 public class ConversationSummaryGenerator {
 

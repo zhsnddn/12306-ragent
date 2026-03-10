@@ -5,6 +5,7 @@ import io.agentscope.core.plan.storage.InMemoryPlanStorage;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** PlanNotebook 计划编排配置 */
 @Configuration
 public class PlanNotebookConfig {
 

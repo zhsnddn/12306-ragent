@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.net.URI;
 
+/** 基于 RustFS 的对象存储实现 */
 @Service
 public class RustfsObjectStorageService implements ObjectStorageService {
 

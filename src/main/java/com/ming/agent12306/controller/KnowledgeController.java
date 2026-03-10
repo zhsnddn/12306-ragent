@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+/** 知识库管理接口控制器 */
 @Validated
 @RestController
 @RequestMapping("/api/knowledge")

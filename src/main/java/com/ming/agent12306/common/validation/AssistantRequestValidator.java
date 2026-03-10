@@ -5,6 +5,7 @@ import com.ming.agent12306.common.exception.BusinessException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+/** 智能助手请求校验组件 */
 @Component
 public class AssistantRequestValidator {
 

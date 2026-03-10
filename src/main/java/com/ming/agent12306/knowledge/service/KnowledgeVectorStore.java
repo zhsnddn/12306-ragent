@@ -4,6 +4,7 @@ import com.ming.agent12306.knowledge.model.KnowledgeChunkRecall;
 
 import java.util.List;
 
+/** 知识向量存储抽象接口 */
 public interface KnowledgeVectorStore {
 
     void upsert(String documentId, List<String> chunkIds, List<String> chunks);

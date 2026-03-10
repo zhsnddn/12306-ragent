@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+/** 统一 Plan 编排执行服务 */
 @Service
 public class TravelPlanningService {
 

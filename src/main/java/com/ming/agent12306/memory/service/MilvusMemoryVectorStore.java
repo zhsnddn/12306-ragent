@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Objects;
 
+/** 基于 Milvus 的记忆向量存储实现 */
 @Component
 @ConditionalOnProperty(prefix = "assistant.memory.milvus", name = "enabled", havingValue = "true")
 public class MilvusMemoryVectorStore implements MemoryVectorStore, AutoCloseable {

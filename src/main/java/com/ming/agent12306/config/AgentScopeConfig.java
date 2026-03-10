@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
+/** AgentScope 相关 Bean 配置 */
 @Configuration
 public class AgentScopeConfig {
 

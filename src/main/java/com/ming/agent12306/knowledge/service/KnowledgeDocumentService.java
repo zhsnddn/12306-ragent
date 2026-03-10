@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/** 知识文档入库编排服务 */
 @Service
 public class KnowledgeDocumentService {
 

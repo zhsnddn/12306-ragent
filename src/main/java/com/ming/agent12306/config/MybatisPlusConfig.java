@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
+/** MyBatis-Plus 基础配置 */
 @Configuration
 public class MybatisPlusConfig {
 

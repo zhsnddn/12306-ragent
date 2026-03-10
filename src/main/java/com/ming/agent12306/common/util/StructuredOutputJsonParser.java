@@ -11,6 +11,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ *  结构化输出 JSON 解析工具
+ */
 @Component
 public class StructuredOutputJsonParser {
 

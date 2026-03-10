@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+/** 智能助手核心服务编排层 */
 @Service
 @RequiredArgsConstructor
 public class AssistantService {

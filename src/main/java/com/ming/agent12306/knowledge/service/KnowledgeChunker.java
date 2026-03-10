@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/** 知识文档文本分块服务 */
 @Component
 public class KnowledgeChunker {
 

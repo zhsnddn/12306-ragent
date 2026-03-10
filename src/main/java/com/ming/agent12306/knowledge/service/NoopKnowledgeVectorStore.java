@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/** 知识向量存储空实现 */
 @Component
 @ConditionalOnProperty(prefix = "assistant.knowledge.milvus", name = "enabled", havingValue = "false")
 public class NoopKnowledgeVectorStore implements KnowledgeVectorStore {

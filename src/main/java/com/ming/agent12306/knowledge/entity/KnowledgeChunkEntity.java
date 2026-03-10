@@ -8,6 +8,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/** 知识分块实体类 */
 @Data
 @TableName("knowledge_chunk")
 public class KnowledgeChunkEntity {

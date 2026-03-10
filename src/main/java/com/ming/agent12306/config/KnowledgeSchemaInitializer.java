@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Locale;
 
+/** 知识库表结构初始化配置 */
 @Component
 public class KnowledgeSchemaInitializer implements ApplicationRunner {
 

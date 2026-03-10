@@ -10,6 +10,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 
+/** SSO 服务端 HTTP 对接服务 */
 @Service
 @RequiredArgsConstructor
 public class SsoHttpService {

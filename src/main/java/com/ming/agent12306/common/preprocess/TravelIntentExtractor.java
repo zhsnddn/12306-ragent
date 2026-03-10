@@ -13,6 +13,9 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ 出行参数提取预处理组件
+ */
 @Component
 public class TravelIntentExtractor {
 
