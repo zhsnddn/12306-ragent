@@ -56,6 +56,25 @@ public class StructuredOutputJsonParser {
         return flattenNode(node);
     }
 
+    public Double readDouble(JsonNode root, String fieldName) {
+        if (root == null || fieldName == null) {
+            return null;
+        }
+        JsonNode node = root.get(fieldName);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return node.asDouble();
+        }
+        String text = node.asText();
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     public List<String> readTextList(JsonNode root, String fieldName) {
         if (root == null || fieldName == null) {
             return List.of();

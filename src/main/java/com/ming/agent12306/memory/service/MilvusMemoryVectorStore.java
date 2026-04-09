@@ -69,9 +69,9 @@ public class MilvusMemoryVectorStore implements MemoryVectorStore, AutoCloseable
         }
 
         return documents.stream()
-                .filter(document -> document.getMetadata() != null)
-                .filter(document -> Objects.equals(sessionId, document.getMetadata().getDocId()))
                 .map(Document::getMetadata)
+                .filter(Objects::nonNull)
+                .filter(metadata -> Objects.equals(sessionId, metadata.getDocId()))
                 .map(DocumentMetadata::getContentText)
                 .filter(Objects::nonNull)
                 .distinct()

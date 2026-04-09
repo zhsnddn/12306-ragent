@@ -9,6 +9,26 @@ spring:
   sql:
     init:
       mode: always
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+
+sso:
+  server-url: ${SSO_SERVER_URL:http://localhost:9001}
+  app-origin: ${SSO_APP_ORIGIN:http://localhost:8080}
+  debug-mode: ${SSO_DEBUG_MODE:true}
+
+sa-token:
+  token-name: satoken
+  timeout: 43200
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: true
+  is-read-header: true
+  is-log: true
 
 assistant:
   model: qwen-max
@@ -35,6 +55,16 @@ assistant:
       collection-name: assistant_memory
       dimensions: 1024
       token: ${MILVUS_TOKEN:}
+  intent:
+    min-score: 0.35
+    max-intent-count: 3
+    guidance:
+      enabled: true
+      ambiguity-score-ratio: 0.8
+      max-options: 6
+    cache:
+      intent-tree-key: "12306:intent:tree"
+      ttl-days: 7
   knowledge:
     enabled: true
     chunk-size: 800
@@ -53,8 +83,3 @@ assistant:
       collection-name: assistant_knowledge
       dimensions: 1024
       token: ${MILVUS_TOKEN:}
-
-sso:
-  server-url: ${SSO_SERVER_URL:http://localhost:9006}
-  client: ${SSO_CLIENT:agent12306-client}
-  callback-url: ${SSO_CALLBACK_URL:http://localhost:8080/sso/callback}

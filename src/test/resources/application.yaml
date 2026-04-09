@@ -7,6 +7,25 @@ spring:
   sql:
     init:
       mode: always
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 123456
+
+sso:
+  server-url: http://localhost:9001
+  app-origin: http://localhost:8080
+
+sa-token:
+  token-name: satoken
+  timeout: 43200
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: true
+  is-read-header: true
+  is-log: false
 
 assistant:
   api-key: test-key

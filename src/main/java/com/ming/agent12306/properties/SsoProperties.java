@@ -9,6 +9,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SsoProperties {
 
     private String serverUrl;
-    private String client;
-    private String callbackUrl;
+    private String appOrigin;
+
+    /**
+     * 调试模式：跳过单点登录验证
+     * 开启后可直接访问受保护接口，无需登录
+     */
+    private boolean debugMode = false;
 }
